@@ -1,6 +1,7 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import Hyprland from "gi://AstalHyprland"
+import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
 import { createState } from "ags"
 import { clearCaptureTargets, setCaptureTargets } from "../lib/overviewd"
@@ -9,6 +10,7 @@ import WindowGrid from "./WindowGrid"
 
 const hypr = Hyprland.get_default()!
 const REFRESH_INTERVAL_MS = 33
+const OVERVIEWD_RUNNER = `${GLib.get_home_dir()}/.config/ags/native/run-hypr-overviewd.sh`
 
 function normalizeAddress(address: string): string {
   return address.startsWith("0x") ? address.slice(2) : address
@@ -27,6 +29,19 @@ async function getStableIds(): Promise<Map<string, string>> {
     console.error(`Failed to get stableIds: ${e}`)
   }
   return map
+}
+
+async function ensureOverviewdRunning(): Promise<void> {
+  try {
+    await execAsync(["pgrep", "-u", GLib.get_user_name(), "-x", "hypr-overviewd"])
+  } catch {
+    try {
+      await execAsync(["bash", "-lc", `${OVERVIEWD_RUNNER} >/dev/null 2>&1 &`])
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    } catch (e) {
+      console.error(`Failed to start hypr-overviewd: ${e}`)
+    }
+  }
 }
 
 export default function Overview() {
@@ -69,6 +84,7 @@ export default function Overview() {
     setFocusedAddress(previousFocusAddress)
     setPreviewWorkspaceId(hypr.get_focused_workspace()?.get_id() ?? 1)
 
+    await ensureOverviewdRunning()
     stableIds = await getStableIds()
     await syncCaptureTargets()
 

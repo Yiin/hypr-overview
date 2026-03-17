@@ -41,6 +41,8 @@ ags/
 native/
   hypr-overviewd/
   run-hypr-overviewd.sh
+systemd/
+  hypr-overviewd.service
 workspace-names.example.json
 ```
 
@@ -58,23 +60,26 @@ ags/lib/config.ts
 ags/style.scss
 ```
 
-Build or run the helper:
+Build the helper:
 
 ```bash
 cd native/hypr-overviewd
 cargo build --release
 ```
 
+Install the user service:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp systemd/hypr-overviewd.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now hypr-overviewd.service
+```
+
 If you keep the helper inside your AGS config, the wrapper script can build it on demand:
 
 ```bash
 native/run-hypr-overviewd.sh
-```
-
-Add the helper to your Hyprland autostart:
-
-```ini
-exec-once = /path/to/run-hypr-overviewd.sh
 ```
 
 Create `~/.config/ags/workspace-names.json` if you want persistent labels:
@@ -93,10 +98,12 @@ bind = SUPER, TAB, exec, ags toggle overview
 
 Your AGS app needs to include the `Overview` widget. The implementation in `ags/widget/Overview.tsx` expects the window to be named `overview`.
 
+The helper should not be launched from Hyprland `exec-once` if you are using the systemd user service.
+
 ## Notes
 
 - The helper watches `targets.json` under `XDG_RUNTIME_DIR/hypr-overviewd/` and only captures windows AGS asks for.
-- The AGS side reads raw frame metadata and wraps it with `Gdk.MemoryTexture`.
+- The AGS side reads raw frame metadata and renders it from mapped bytes via `GdkPixbuf`.
 - Workspace-name persistence is currently stored in `~/.config/ags/workspace-names.json`.
 
 ## Limitations

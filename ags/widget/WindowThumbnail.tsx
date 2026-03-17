@@ -1,6 +1,7 @@
 import { Gtk, Gdk } from "ags/gtk4"
 import Hyprland from "gi://AstalHyprland"
 import GLib from "gi://GLib"
+import GdkPixbuf from "gi://GdkPixbuf"
 import { createBinding, createEffect, Accessor } from "ags"
 import { getFramePath, readFrameMetadata } from "../lib/overviewd"
 
@@ -16,12 +17,12 @@ interface Props {
   getStableId: (address: string) => string | null
 }
 
-function toMemoryFormat(format: string): Gdk.MemoryFormat | null {
+function hasAlphaChannel(format: string): boolean | null {
   switch (format) {
     case "B8G8R8A8":
-      return Gdk.MemoryFormat.B8G8R8A8
+      return true
     case "B8G8R8X8":
-      return Gdk.MemoryFormat.B8G8R8X8
+      return false
     default:
       return null
   }
@@ -47,25 +48,25 @@ export default function WindowThumbnail({
       ? appClass.toLowerCase()
       : "application-x-executable"
 
-  const picture = new Gtk.Picture({
+  const preview = new Gtk.DrawingArea({
     widthRequest: THUMB_WIDTH,
     heightRequest: THUMB_HEIGHT,
-    canShrink: true,
     hexpand: false,
     vexpand: false,
   })
-  picture.set_css_classes(["thumbnail-image"])
-  picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+  preview.set_css_classes(["thumbnail-image"])
 
   let currentSeq = -1
   let currentStableId: string | null = null
   let currentMappedFile: GLib.MappedFile | null = null
+  let currentPixbuf: GdkPixbuf.Pixbuf | null = null
 
   function clearTexture() {
     currentStableId = null
     currentSeq = -1
     currentMappedFile = null
-    picture.set_paintable(null)
+    currentPixbuf = null
+    preview.queue_draw()
   }
 
   function loadTexture() {
@@ -76,8 +77,8 @@ export default function WindowThumbnail({
     }
 
     const meta = readFrameMetadata(stableId)
-    const memoryFormat = meta ? toMemoryFormat(meta.format) : null
-    if (!meta || !memoryFormat) {
+    const hasAlpha = meta ? hasAlphaChannel(meta.format) : null
+    if (!meta || hasAlpha === null) {
       clearTexture()
       return
     }
@@ -88,21 +89,48 @@ export default function WindowThumbnail({
 
     try {
       const mappedFile = GLib.MappedFile.new(getFramePath(stableId, meta.slot), false)
-      const texture = Gdk.MemoryTexture.new(
+      const pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+        mappedFile.get_bytes(),
+        GdkPixbuf.Colorspace.RGB,
+        hasAlpha,
+        8,
         meta.width,
         meta.height,
-        memoryFormat,
-        mappedFile.get_bytes(),
         meta.stride,
       )
       currentStableId = stableId
       currentSeq = meta.seq
       currentMappedFile = mappedFile
-      picture.set_paintable(texture)
+      currentPixbuf = pixbuf
+      preview.queue_draw()
     } catch {
       clearTexture()
     }
   }
+
+  preview.set_draw_func((_area: Gtk.DrawingArea, cr: any, width: number, height: number) => {
+    cr.setSourceRGBA(0.19, 0.19, 0.27, 1)
+    cr.paint()
+
+    if (!currentPixbuf) {
+      return
+    }
+
+    const pixbufWidth = currentPixbuf.get_width()
+    const pixbufHeight = currentPixbuf.get_height()
+    const scale = Math.min(width / pixbufWidth, height / pixbufHeight)
+    const targetWidth = pixbufWidth * scale
+    const targetHeight = pixbufHeight * scale
+    const offsetX = (width - targetWidth) / 2
+    const offsetY = (height - targetHeight) / 2
+
+    cr.save()
+    cr.translate(offsetX, offsetY)
+    cr.scale(scale, scale)
+    Gdk.cairo_set_source_pixbuf(cr, currentPixbuf, 0, 0)
+    cr.paint()
+    cr.restore()
+  })
 
   loadTexture()
 
@@ -115,11 +143,14 @@ export default function WindowThumbnail({
     <button
       class={`window-thumbnail ${isFocused ? "focused" : ""}`}
       onClicked={() => onSelect(address)}
+      widthRequest={THUMB_WIDTH + 24}
       hexpand={false}
       vexpand={false}
+      halign={Gtk.Align.START}
+      valign={Gtk.Align.START}
     >
       <box orientation={Gtk.Orientation.VERTICAL} hexpand={false} vexpand={false} widthRequest={THUMB_WIDTH + 24}>
-        {picture}
+        {preview}
 
         <box class="thumbnail-info" spacing={8} vexpand={false}>
           <image iconName={iconName} pixelSize={16} />

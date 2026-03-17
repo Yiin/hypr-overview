@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/hypr-overviewd" && pwd)"
 BIN="$ROOT/target/release/hypr-overviewd"
 
+if pgrep -u "${USER:-$(id -un)}" -x hypr-overviewd >/dev/null 2>&1; then
+  exit 0
+fi
+
 needs_build=0
 if [[ ! -x "$BIN" ]]; then
   needs_build=1

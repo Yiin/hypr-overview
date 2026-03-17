@@ -35,6 +35,16 @@ export default function WindowGrid({
   })
 
   const isEmpty = createComputed(() => clients().length === 0)
+  const clientRows = createComputed(() => {
+    const visibleClients = clients()
+    const rows: Array<Array<Hyprland.Client>> = []
+
+    for (let i = 0; i < visibleClients.length; i += 3) {
+      rows.push(visibleClients.slice(i, i + 3))
+    }
+
+    return rows
+  })
 
   function handleClose(address: string) {
     const addr = address.startsWith("0x") ? address : `0x${address}`
@@ -49,7 +59,13 @@ export default function WindowGrid({
       hscrollbarPolicy={Gtk.PolicyType.NEVER}
       vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
     >
-      <box class="window-grid-container" orientation={Gtk.Orientation.VERTICAL}>
+      <box
+        class="window-grid-container"
+        orientation={Gtk.Orientation.VERTICAL}
+        hexpand
+        vexpand
+        halign={Gtk.Align.FILL}
+      >
         <box
           class="empty-state"
           visible={isEmpty}
@@ -64,21 +80,28 @@ export default function WindowGrid({
         <box
           class="window-grid"
           visible={isEmpty.as((e: boolean) => !e)}
+          orientation={Gtk.Orientation.VERTICAL}
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.START}
+          hexpand
           spacing={20}
-          homogeneous={false}
         >
-          <For each={clients}>
-            {(client) => (
-              <WindowThumbnail
-                client={client}
-                isFocused={client.get_address() === focusedAddress()}
-                onSelect={onSelectWindow}
-                onClose={handleClose}
-                captureRevision={captureRevision}
-                getStableId={getStableId}
-              />
+          <For each={clientRows}>
+            {(row) => (
+              <box spacing={20} halign={Gtk.Align.CENTER}>
+                <For each={() => row}>
+                  {(client) => (
+                    <WindowThumbnail
+                      client={client}
+                      isFocused={client.get_address() === focusedAddress()}
+                      onSelect={onSelectWindow}
+                      onClose={handleClose}
+                      captureRevision={captureRevision}
+                      getStableId={getStableId}
+                    />
+                  )}
+                </For>
+              </box>
             )}
           </For>
         </box>
