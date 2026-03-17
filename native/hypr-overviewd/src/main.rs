@@ -331,6 +331,26 @@ impl App {
             capture.identifier.clone()
         };
 
+        let old_buffers = {
+            let entry = self
+                .toplevels
+                .get_mut(&key)
+                .ok_or_else(|| anyhow!("missing toplevel entry for {key}"))?;
+            let capture = entry
+                .capture
+                .as_mut()
+                .ok_or_else(|| anyhow!("missing capture state for {key}"))?;
+            capture.buffers.take()
+        };
+
+        if let Some(old) = old_buffers {
+            for slot in old.slots {
+                slot.buffer.destroy();
+                slot.pool.destroy();
+                let _ = fs::remove_file(slot.path);
+            }
+        }
+
         let slot0 = self.create_slot(&session, &identifier, 0, width, height, stride, format, qh)?;
         let slot1 = self.create_slot(&session, &identifier, 1, width, height, stride, format, qh)?;
 
@@ -342,15 +362,6 @@ impl App {
             .capture
             .as_mut()
             .ok_or_else(|| anyhow!("missing capture state for {key}"))?;
-
-        if let Some(old) = capture.buffers.take() {
-            for slot in old.slots {
-                slot.buffer.destroy();
-                slot.pool.destroy();
-                let _ = fs::remove_file(slot.path);
-            }
-        }
-
         capture.buffers = Some(BufferState {
             width,
             height,

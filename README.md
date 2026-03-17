@@ -36,12 +36,14 @@ This was built against Hyprland and AGS on Linux. It is not meant for X11.
 ```text
 ags/
   lib/
+  run-ags-service.sh
   widget/
   style.scss
 native/
   hypr-overviewd/
   run-hypr-overviewd.sh
 systemd/
+  ags.service
   hypr-overviewd.service
 workspace-names.example.json
 ```
@@ -57,6 +59,7 @@ ags/widget/WindowGrid.tsx
 ags/widget/WindowThumbnail.tsx
 ags/lib/overviewd.ts
 ags/lib/config.ts
+ags/run-ags-service.sh
 ags/style.scss
 ```
 
@@ -71,8 +74,9 @@ Install the user service:
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cp systemd/hypr-overviewd.service ~/.config/systemd/user/
+cp systemd/hypr-overviewd.service systemd/ags.service ~/.config/systemd/user/
 systemctl --user daemon-reload
+systemctl --user enable --now ags.service
 systemctl --user enable --now hypr-overviewd.service
 ```
 
@@ -99,6 +103,7 @@ bind = SUPER, TAB, exec, ags toggle overview
 Your AGS app needs to include the `Overview` widget. The implementation in `ags/widget/Overview.tsx` expects the window to be named `overview`.
 
 The helper should not be launched from Hyprland `exec-once` if you are using the systemd user service.
+AGS should also not be launched from Hyprland `exec-once` if you are using `ags.service`.
 
 ## Notes
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=AGS widget daemon
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.config/ags/run-ags-service.sh
+ExecStop=/usr/bin/ags quit
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=default.target
