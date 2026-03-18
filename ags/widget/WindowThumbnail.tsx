@@ -139,15 +139,29 @@ export default function WindowThumbnail({
     loadTexture()
   })
 
+  const selectGesture = Gtk.GestureClick.new()
+  selectGesture.set_button(1)
+  selectGesture.connect("released", () => {
+    onSelect(address)
+  })
+
   return (
-    <button
+    <box
       class={`window-thumbnail ${isFocused ? "focused" : ""}`}
-      onClicked={() => onSelect(address)}
       widthRequest={THUMB_WIDTH + 24}
       hexpand={false}
       vexpand={false}
       halign={Gtk.Align.START}
       valign={Gtk.Align.START}
+      $={(self) => {
+        const dragSource = Gtk.DragSource.new()
+        dragSource.set_actions(Gdk.DragAction.MOVE)
+        dragSource.connect("prepare", () => {
+          return Gdk.ContentProvider.new_for_value(`window:${address}`)
+        })
+        self.add_controller(dragSource)
+        self.add_controller(selectGesture)
+      }}
     >
       <box orientation={Gtk.Orientation.VERTICAL} hexpand={false} vexpand={false} widthRequest={THUMB_WIDTH + 24}>
         {preview}
@@ -165,11 +179,13 @@ export default function WindowThumbnail({
           <button
             class="close-btn"
             onClicked={() => onClose(address)}
+            widthRequest={22}
+            heightRequest={22}
           >
-            <label label="\u00d7" />
+            <image iconName="window-close-symbolic" pixelSize={12} />
           </button>
         </box>
       </box>
-    </button>
+    </box>
   )
 }

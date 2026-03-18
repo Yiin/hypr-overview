@@ -1,8 +1,26 @@
 {
-  "1": "Code",
-  "2": "Web",
-  "3": "Chat",
-  "4": "Media",
-  "5": "Other"
+  "version": 2,
+  "workspaces": [
+    {
+      "id": 1,
+      "name": "Code",
+      "monitors": [
+        "*"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Web",
+      "monitors": [
+        "DP-4"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Chat",
+      "monitors": [
+        "eDP-1"
+      ]
+    }
+  ]
 }
-

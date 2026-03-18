@@ -13,10 +13,9 @@ This avoids the `grim -> image file -> decode every frame` loop that falls over 
 
 - `Super+Tab`-style overview overlay
 - live per-window previews
-- workspace strip with inline renaming
+- workspace strip with create, edit, delete, and drag-reorder support
 - drag a window onto a workspace pill to move it there
-- persistent workspace names
-- optional workspace pills `6-9` only show when occupied or selected
+- persistent workspace names, ordering, and monitor assignments
 
 ## Requirements
 
@@ -86,10 +85,10 @@ If you keep the helper inside your AGS config, the wrapper script can build it o
 native/run-hypr-overviewd.sh
 ```
 
-Create `~/.config/ags/workspace-names.json` if you want persistent labels:
+Create `~/.config/ags/workspaces.json` if you want persistent workspace metadata:
 
 ```bash
-cp workspace-names.example.json ~/.config/ags/workspace-names.json
+cp workspace-names.example.json ~/.config/ags/workspaces.json
 ```
 
 ## AGS Wiring
@@ -109,7 +108,7 @@ AGS should also not be launched from Hyprland `exec-once` if you are using `ags.
 
 - The helper watches `targets.json` under `XDG_RUNTIME_DIR/hypr-overviewd/` and only captures windows AGS asks for.
 - The AGS side reads raw frame metadata and renders it from mapped bytes via `GdkPixbuf`.
-- Workspace-name persistence is currently stored in `~/.config/ags/workspace-names.json`.
+- Workspace metadata is stored in `~/.config/ags/workspaces.json`.
 
 ## Limitations
 
