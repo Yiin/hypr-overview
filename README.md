@@ -9,6 +9,10 @@ It is split into two parts:
 
 This avoids the `grim -> image file -> decode every frame` loop that falls over once you have more windows on screen.
 
+## Preview
+
+![hypr-overview preview](./hypr-overview-preview.png)
+
 ## What It Does
 
 - `Super+Tab`-style overview overlay
