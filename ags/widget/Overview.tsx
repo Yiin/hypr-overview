@@ -51,6 +51,7 @@ export default function Overview() {
   const [focusedAddress, setFocusedAddress] = createState<string | null>(null)
   const [captureRevision, setCaptureRevision] = createState(0)
 
+  let overviewWindow: Gtk.Window | null = null
   let previousFocusAddress: string | null = null
   let windowWasSelected = false
   let stableIds = new Map<string, string>()
@@ -87,6 +88,7 @@ export default function Overview() {
     await ensureOverviewdRunning()
     stableIds = await getStableIds()
     await syncCaptureTargets()
+    overviewWindow?.grab_focus()
 
     frameTimer = setInterval(() => {
       setCaptureRevision((v) => v + 1)
@@ -141,6 +143,9 @@ export default function Overview() {
         Astal.WindowAnchor.RIGHT
       }
       $={(self) => {
+        overviewWindow = self
+        self.set_focusable(true)
+
         self.connect("notify::visible", () => {
           if (self.visible) {
             onShow()
