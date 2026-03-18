@@ -35,71 +35,56 @@ window.Overview {
 // Workspace strip
 .workspace-strip {
   margin-bottom: 24px;
-  padding: 10px 20px;
 }
 
-.workspace-pill {
-  background: $surface0;
-  border-radius: 10px;
-  padding: 0 20px;
-  min-width: 60px;
-  min-height: 40px;
-  transition: background 200ms;
-  border: none;
+.workspace-tab {
+  padding: 6px 0;
+  transition: all 200ms;
 
-  label {
-    color: $subtext0;
-    font-size: 15px;
-    font-weight: 500;
+  .workspace-tab-label {
+    color: $overlay0;
+    font-size: 14px;
+    font-weight: 400;
+    padding: 0 4px;
+  }
+
+  .workspace-tab-indicator {
+    min-height: 2px;
+    border-radius: 1px;
+    background: transparent;
+    transition: background 200ms;
+    margin-top: 4px;
   }
 
   &.active {
-    background: $blue;
+    .workspace-tab-label {
+      color: $text;
+      font-weight: 600;
+    }
 
-    label {
-      color: $crust;
-      font-weight: 700;
+    .workspace-tab-indicator {
+      background: $blue;
     }
   }
 
   &:hover:not(.active) {
-    background: $surface1;
-  }
-}
-
-.workspace-add {
-  background: transparent;
-  border: 2px dashed $overlay0;
-  border-radius: 10px;
-  padding: 0 16px;
-  min-width: 44px;
-  min-height: 40px;
-  transition: all 200ms;
-
-  label {
-    color: $overlay0;
-    font-size: 18px;
-    font-weight: 500;
-  }
-
-  &:hover {
-    border-color: $subtext0;
-    background: rgba($surface0, 0.5);
-
-    label {
+    .workspace-tab-label {
       color: $subtext0;
     }
   }
 }
 
-.workspace-add-icon {
-  min-width: 44px;
-  padding: 0 10px;
-  margin-top: 0;
+.workspace-tab-add {
+  padding: 6px 0;
 
   label {
-    font-size: 18px;
-    line-height: 1;
+    color: $surface1;
+    font-size: 16px;
+    font-weight: 400;
+  }
+
+  &:hover label {
+    color: $subtext0;
   }
 }
 
@@ -164,17 +149,17 @@ window.Overview {
   min-height: 24px;
   padding: 0;
   border-radius: 9999px;
-  background: rgba($surface1, 0.65);
+  background: rgba($surface1, 0.4);
 
   image {
-    color: $subtext0;
+    color: $surface2;
   }
 
   &:hover {
-    background: rgba($surface2, 0.85);
+    background: rgba($surface2, 0.6);
 
     image {
-      color: $text;
+      color: $subtext0;
     }
   }
 }
@@ -272,45 +257,34 @@ window.Overview {
 
 // Window thumbnail
 .window-thumbnail {
-  background: $base;
   border-radius: 12px;
-  border: 2px solid $surface0;
-  padding: 0;
   transition: all 200ms;
 
-  > box {
-    padding: 12px;
-  }
-
   &:hover {
-    border-color: $surface2;
-    background: $base-light;
-
     .close-btn {
       opacity: 0.9;
     }
   }
 
   &.focused {
-    border: 2px solid $blue;
+    border: 2px solid rgba($blue, 0.5);
   }
 }
 
 .thumbnail-image {
-  border-radius: 8px;
+  border-radius: 0;
   background: $surface0;
 }
 
 .thumbnail-fallback {
-  border-radius: 8px;
+  border-radius: 0;
   background: $surface0;
 }
 
-.thumbnail-info {
-  padding: 8px 4px 4px 4px;
-  min-height: 24px;
+.thumbnail-info-overlay {
+  padding: 8px 12px;
 
-  image {
+  .thumbnail-icon {
     opacity: 0.8;
     min-width: 16px;
     min-height: 16px;
@@ -318,30 +292,37 @@ window.Overview {
 }
 
 .thumbnail-title {
-  color: $text;
-  font-size: 14px;
+  color: $subtext0;
+  font-size: 12px;
   font-weight: 500;
   min-height: 20px;
+
+  .focused & {
+    color: $text;
+  }
 }
 
 .close-btn {
-  background: $red;
-  color: $crust;
+  background: rgba(white, 0.2);
   border-radius: 9999px;
-  min-width: 22px;
-  min-height: 22px;
+  min-width: 24px;
+  min-height: 24px;
   padding: 0;
   border: none;
   opacity: 0;
   transition: opacity 150ms;
+  margin: 8px;
 
   &:hover {
     opacity: 1;
-    background: $red-light;
+    background: rgba(white, 0.4);
   }
 
   image {
-    color: $crust;
-    opacity: 1;
+    color: rgba(white, 0.8);
+  }
+
+  &:hover image {
+    color: white;
   }
 }

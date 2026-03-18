@@ -113,6 +113,15 @@ export default function WindowThumbnail({
     cr.paint()
 
     if (!currentPixbuf) {
+      // Draw gradient on empty state
+      const gradientStart = height * 0.70
+      const gradientHeight = height - gradientStart
+      const gradient = new (imports.cairo as any).LinearGradient(0, gradientStart, 0, height)
+      gradient.addColorStopRGBA(0, 0.067, 0.067, 0.106, 0)
+      gradient.addColorStopRGBA(1, 0.067, 0.067, 0.106, 0.9)
+      cr.setSource(gradient)
+      cr.rectangle(0, gradientStart, width, gradientHeight)
+      cr.fill()
       return
     }
 
@@ -130,6 +139,16 @@ export default function WindowThumbnail({
     Gdk.cairo_set_source_pixbuf(cr, currentPixbuf, 0, 0)
     cr.paint()
     cr.restore()
+
+    // Draw bottom gradient overlay
+    const gradientStart = height * 0.70
+    const gradientHeight = height - gradientStart
+    const gradient = new (imports.cairo as any).LinearGradient(0, gradientStart, 0, height)
+    gradient.addColorStopRGBA(0, 0.067, 0.067, 0.106, 0)
+    gradient.addColorStopRGBA(1, 0.067, 0.067, 0.106, 0.9)
+    cr.setSource(gradient)
+    cr.rectangle(0, gradientStart, width, gradientHeight)
+    cr.fill()
   })
 
   loadTexture()
@@ -148,12 +167,13 @@ export default function WindowThumbnail({
   return (
     <box
       class={`window-thumbnail ${isFocused ? "focused" : ""}`}
-      widthRequest={THUMB_WIDTH + 24}
+      widthRequest={THUMB_WIDTH}
       hexpand={false}
       vexpand={false}
       halign={Gtk.Align.START}
       valign={Gtk.Align.START}
       $={(self) => {
+        self.set_overflow(Gtk.Overflow.HIDDEN)
         const dragSource = Gtk.DragSource.new()
         dragSource.set_actions(Gdk.DragAction.MOVE)
         dragSource.connect("prepare", () => {
@@ -163,11 +183,16 @@ export default function WindowThumbnail({
         self.add_controller(selectGesture)
       }}
     >
-      <box orientation={Gtk.Orientation.VERTICAL} hexpand={false} vexpand={false} widthRequest={THUMB_WIDTH + 24}>
+      <Gtk.Overlay>
         {preview}
-
-        <box class="thumbnail-info" spacing={8} vexpand={false}>
-          <image iconName={iconName} pixelSize={16} />
+        <box
+          $type="overlay"
+          class="thumbnail-info-overlay"
+          halign={Gtk.Align.FILL}
+          valign={Gtk.Align.END}
+          spacing={8}
+        >
+          <image iconName={iconName} pixelSize={16} class="thumbnail-icon" />
           <label
             label={title.as((t: string) => t.length > 40 ? t.slice(0, 37) + "..." : t)}
             xalign={0}
@@ -175,17 +200,19 @@ export default function WindowThumbnail({
             ellipsize={3}
             class="thumbnail-title"
           />
-          <box hexpand />
-          <button
-            class="close-btn"
-            onClicked={() => onClose(address)}
-            widthRequest={22}
-            heightRequest={22}
-          >
-            <image iconName="window-close-symbolic" pixelSize={12} />
-          </button>
         </box>
-      </box>
+        <button
+          $type="overlay"
+          class="close-btn"
+          halign={Gtk.Align.END}
+          valign={Gtk.Align.START}
+          onClicked={() => onClose(address)}
+          widthRequest={24}
+          heightRequest={24}
+        >
+          <image iconName="window-close-symbolic" pixelSize={12} />
+        </button>
+      </Gtk.Overlay>
     </box>
   )
 }

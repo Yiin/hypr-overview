@@ -84,11 +84,11 @@ export default function WindowGrid({
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.START}
           hexpand
-          spacing={20}
+          spacing={16}
         >
           <For each={clientRows}>
             {(row) => (
-              <box spacing={20} halign={Gtk.Align.CENTER}>
+              <box spacing={16} halign={Gtk.Align.CENTER}>
                 <For each={() => row}>
                   {(client) => (
                     <WindowThumbnail

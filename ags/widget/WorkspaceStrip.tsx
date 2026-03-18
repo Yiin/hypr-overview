@@ -371,7 +371,7 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
-      <box class="workspace-strip" halign={Gtk.Align.CENTER} spacing={8}>
+      <box class="workspace-strip" halign={Gtk.Align.CENTER} spacing={28}>
         <For each={stripItems}>
           {(workspace) => {
             if (workspace === null) {
@@ -384,7 +384,7 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
               return (
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={6} valign={Gtk.Align.START}>
                   <box
-                    class="workspace-add workspace-add-icon"
+                    class="workspace-tab-add"
                     $={(self) => {
                       self.add_controller(createClickGesture)
                     }}
@@ -433,7 +433,9 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
             return (
               <box orientation={Gtk.Orientation.VERTICAL} spacing={6} valign={Gtk.Align.START}>
                 <box
-                  class={isActive.as((active: boolean) => `workspace-pill ${active ? "active" : ""}`)}
+                  orientation={Gtk.Orientation.VERTICAL}
+                  spacing={0}
+                  class={isActive.as((active: boolean) => `workspace-tab ${active ? "active" : ""}`)}
                   $={(self) => {
                     self.add_controller(dropTarget)
                     self.add_controller(dragSource)
@@ -447,7 +449,9 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
                     hexpand
                     halign={Gtk.Align.CENTER}
                     valign={Gtk.Align.CENTER}
+                    class="workspace-tab-label"
                   />
+                  <box class="workspace-tab-indicator" />
                 </box>
 
                 <box
