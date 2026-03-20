@@ -24,6 +24,7 @@ export default function WindowGrid({
 
   hypr.connect("client-added", () => setClientRevision((v) => v + 1))
   hypr.connect("client-removed", () => setClientRevision((v) => v + 1))
+  hypr.connect("client-moved", () => setClientRevision((v) => v + 1))
 
   const clients = createComputed(() => {
     clientRevision()

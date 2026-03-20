@@ -103,6 +103,7 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
   hypr.connect("workspace-removed", () => setWorkspaceRevision((value) => value + 1))
   hypr.connect("client-added", () => setClientRevision((value) => value + 1))
   hypr.connect("client-removed", () => setClientRevision((value) => value + 1))
+  hypr.connect("client-moved", () => setClientRevision((value) => value + 1))
   hypr.connect("monitor-added", () => setMonitorRevision((value) => value + 1))
   hypr.connect("monitor-removed", () => setMonitorRevision((value) => value + 1))
   hypr.connect("notify::focused-monitor", () => setMonitorRevision((value) => value + 1))
