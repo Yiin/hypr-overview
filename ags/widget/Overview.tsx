@@ -83,7 +83,14 @@ export default function Overview() {
     const focused = hypr.get_focused_client()
     previousFocusAddress = focused?.get_address() ?? null
     setFocusedAddress(previousFocusAddress)
-    setPreviewWorkspaceId(hypr.get_focused_workspace()?.get_id() ?? 1)
+    const focusedMonitor = hypr.get_focused_monitor()
+    const specialWs = focusedMonitor?.get_special_workspace()
+    const specialId = specialWs?.get_id() ?? 0
+    if (specialId !== 0) {
+      setPreviewWorkspaceId(specialId)
+    } else {
+      setPreviewWorkspaceId(hypr.get_focused_workspace()?.get_id() ?? 1)
+    }
 
     await ensureOverviewdRunning()
     stableIds = await getStableIds()

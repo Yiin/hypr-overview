@@ -6,9 +6,11 @@ import {
   ALL_MONITORS,
   WorkspaceDefinition,
   applyWorkspaceName,
+  applyWorkspaceIdReassignment,
   getAssignedMonitors,
   getNextWorkspaceId,
   loadWorkspaceDefinitionsWithRuntime,
+  reassignWorkspaceIds,
   saveWorkspaceDefinitions,
 } from "../lib/config"
 
@@ -23,6 +25,7 @@ interface WorkspaceView extends WorkspaceDefinition {
   displayName: string
   assignedMonitors: string[]
   hasWindows: boolean
+  special: boolean
 }
 
 interface EditorDraft {
@@ -121,7 +124,7 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
     const liveNames = new Map(
       hypr
         .get_workspaces()
-        .filter((workspace) => workspace.get_id() > 0)
+        .filter((workspace) => workspace.get_id() !== 0)
         .map((workspace) => [workspace.get_id(), workspace.get_name()]),
     )
     const occupiedWorkspaceIds = new Set(
@@ -129,10 +132,10 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
         .get_clients()
         .filter((client) => client.get_mapped() && !client.get_hidden())
         .map((client) => client.get_workspace()?.get_id())
-        .filter((id): id is number => id != null && id > 0),
+        .filter((id): id is number => id != null && id !== 0),
     )
 
-    const allWorkspaces = loadWorkspaceDefinitionsWithRuntime().map((workspace) => {
+    const regularWorkspaces = loadWorkspaceDefinitionsWithRuntime().map((workspace) => {
       const displayName = workspace.name.trim() || liveNames.get(workspace.id) || String(workspace.id)
       const assignedMonitors = getAssignedMonitors(workspace, currentMonitorNames)
 
@@ -141,8 +144,31 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
         displayName,
         assignedMonitors,
         hasWindows: occupiedWorkspaceIds.has(workspace.id),
+        special: false,
       } satisfies WorkspaceView
     })
+
+    const specialWorkspaces = hypr
+      .get_workspaces()
+      .filter((workspace) => workspace.get_id() < 0)
+      .sort((a, b) => a.get_id() - b.get_id())
+      .map((workspace) => {
+        const rawName = workspace.get_name() || ""
+        const displayName = rawName.replace(/^special:/, "").trim() || "Special"
+        const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1)
+
+        return {
+          id: workspace.get_id(),
+          name: rawName,
+          monitors: [ALL_MONITORS],
+          displayName: capitalizedName,
+          assignedMonitors: [...currentMonitorNames],
+          hasWindows: occupiedWorkspaceIds.has(workspace.get_id()),
+          special: true,
+        } satisfies WorkspaceView
+      })
+
+    const allWorkspaces = [...regularWorkspaces, ...specialWorkspaces]
 
     return {
       monitorNames: currentMonitorNames,
@@ -160,7 +186,7 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
   )
   const hasSelectedWorkspace = createComputed(() => selectedWorkspace() !== null)
   const canDeleteSelected = createComputed(
-    () => allWorkspaces().length > 1 && selectedWorkspace() !== null,
+    () => allWorkspaces().length > 1 && selectedWorkspace() !== null && !selectedWorkspace()?.special,
   )
   const editorVisible = createComputed(() => editor() !== null)
   const editorTitle = createComputed(() => {
@@ -344,12 +370,26 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
 
   function reorderWorkspace(sourceId: number, targetId: number) {
     const base = serializeWorkspaces(allWorkspaces())
-    const next = reorderWorkspaces(base, sourceId, targetId)
-    if (next === base) {
+    const reordered = reorderWorkspaces(base, sourceId, targetId)
+    if (reordered === base) {
       return
     }
 
-    saveWorkspaceDefinitions(next)
+    const { workspaces: reassigned, mapping } = reassignWorkspaceIds(reordered)
+
+    // Save first so config reflects new IDs
+    saveWorkspaceDefinitions(reassigned)
+
+    // Move windows and rename workspaces in Hyprland
+    applyWorkspaceIdReassignment(mapping, reassigned)
+
+    // Update preview to follow the moved workspace
+    const currentPreview = previewWorkspaceId()
+    const newPreviewId = mapping.oldToNew.get(currentPreview)
+    if (newPreviewId !== undefined) {
+      setPreviewWorkspaceId(newPreviewId)
+    }
+
     refreshConfig()
   }
 
@@ -404,7 +444,48 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
             }
 
             const workspaceId = workspace.id
+            const isSpecial = workspace.special
             const isActive = createComputed(() => previewWorkspaceId() === workspaceId)
+
+            const clickGesture = Gtk.GestureClick.new()
+            clickGesture.set_button(1)
+            clickGesture.connect("released", (_self, nPress) => {
+              if (!isSpecial && nPress === 2) {
+                openEditEditor(workspace)
+                return
+              }
+
+              if (nPress === 1) {
+                switchToWorkspace(workspaceId)
+              }
+            })
+
+            if (isSpecial) {
+              return (
+                <box orientation={Gtk.Orientation.VERTICAL} spacing={6} valign={Gtk.Align.START}>
+                  <box
+                    orientation={Gtk.Orientation.VERTICAL}
+                    spacing={0}
+                    class={isActive.as((active: boolean) => `workspace-tab special ${active ? "active" : ""}`)}
+                    $={(self) => {
+                      self.add_controller(clickGesture)
+                    }}
+                  >
+                    <label
+                      label={workspace.displayName}
+                      widthChars={3}
+                      xalign={0.5}
+                      hexpand
+                      halign={Gtk.Align.CENTER}
+                      valign={Gtk.Align.CENTER}
+                      class="workspace-tab-label"
+                    />
+                    <box class="workspace-tab-indicator" />
+                  </box>
+                  <box class="workspace-active-actions" />
+                </box>
+              )
+            }
 
             const dropTarget = Gtk.DropTarget.new(GObject.TYPE_STRING, Gdk.DragAction.MOVE)
             dropTarget.connect("drop", (_self: Gtk.DropTarget, value: unknown) => {
@@ -416,19 +497,6 @@ export default function WorkspaceStrip({ previewWorkspaceId, setPreviewWorkspace
             dragSource.set_actions(Gdk.DragAction.MOVE)
             dragSource.connect("prepare", () => {
               return Gdk.ContentProvider.new_for_value(`workspace:${workspaceId}`)
-            })
-
-            const clickGesture = Gtk.GestureClick.new()
-            clickGesture.set_button(1)
-            clickGesture.connect("released", (_self, nPress) => {
-              if (nPress === 2) {
-                openEditEditor(workspace)
-                return
-              }
-
-              if (nPress === 1) {
-                switchToWorkspace(workspaceId)
-              }
             })
 
             return (

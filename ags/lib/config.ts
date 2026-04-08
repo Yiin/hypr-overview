@@ -192,6 +192,29 @@ export function saveWorkspaceDefinitions(workspaces: WorkspaceDefinition[]) {
   }
 
   writeFile(CONFIG_PATH, JSON.stringify(config, null, 2))
+  syncWaybarIcons(normalized)
+}
+
+const WAYBAR_MODULES_PATH = GLib.get_home_dir() + "/.config/waybar/modules.jsonc"
+
+function syncWaybarIcons(workspaces: WorkspaceDefinition[]) {
+  try {
+    const content = readFile(WAYBAR_MODULES_PATH)
+    const modules = JSON.parse(content)
+    const wsModule = modules["hyprland/workspaces"]
+    if (!wsModule) return
+
+    const icons: Record<string, string> = { special: "󰏆", default: "·" }
+    for (const ws of workspaces) {
+      icons[ws.name] = String(ws.id)
+    }
+
+    wsModule["format-icons"] = icons
+    writeFile(WAYBAR_MODULES_PATH, JSON.stringify(modules, null, 2))
+    GLib.spawn_command_line_async("killall -SIGUSR2 waybar")
+  } catch (error) {
+    console.error(`Failed to sync waybar icons: ${error}`)
+  }
 }
 
 export function loadWorkspaceNames(): Record<number, string> {
@@ -303,5 +326,106 @@ export function applyWorkspaceName(id: number) {
     hypr.dispatch("renameworkspace", `${id} ${definition.name}`)
   } catch (error) {
     console.error(`Failed to apply workspace ${id} name: ${error}`)
+  }
+}
+
+export interface IdMapping {
+  oldToNew: Map<number, number>
+}
+
+export function reassignWorkspaceIds(
+  workspaces: WorkspaceDefinition[],
+): { workspaces: WorkspaceDefinition[]; mapping: IdMapping } {
+  const oldToNew = new Map<number, number>()
+
+  const reassigned = workspaces.map((workspace, index) => {
+    const newId = index + 1
+    if (workspace.id !== newId) {
+      oldToNew.set(workspace.id, newId)
+    }
+    return { ...workspace, id: newId }
+  })
+
+  return { workspaces: reassigned, mapping: { oldToNew } }
+}
+
+export function applyWorkspaceIdReassignment(
+  mapping: IdMapping,
+  workspaces: WorkspaceDefinition[],
+) {
+  if (mapping.oldToNew.size === 0) {
+    return
+  }
+
+  const focusedWsId = hypr.get_focused_workspace()?.get_id() ?? 1
+  const newFocusedWsId = mapping.oldToNew.get(focusedWsId) ?? focusedWsId
+
+  // Build a full bidirectional map (including unchanged IDs) to track all movements
+  const allOldIds = new Set(workspaces.map((_, i) => {
+    // Find the original ID that maps to this position
+    for (const [oldId, newId] of mapping.oldToNew) {
+      if (newId === i + 1) return oldId
+    }
+    return i + 1 // unchanged
+  }))
+
+  // Get all clients and their workspace assignments
+  let clients: Array<{ address: string; workspace: { id: number } }>
+  try {
+    const [ok, stdout, , status] = GLib.spawn_command_line_sync("hyprctl -j clients")
+    if (!ok || status !== 0) {
+      return
+    }
+    clients = JSON.parse(decode(stdout))
+  } catch {
+    return
+  }
+
+  // Build move plan: collect clients that need to move
+  const moves: Array<{ address: string; newId: number }> = []
+  for (const client of clients) {
+    const wsId = client.workspace.id
+    if (wsId > 0 && mapping.oldToNew.has(wsId)) {
+      moves.push({ address: client.address, newId: mapping.oldToNew.get(wsId)! })
+    }
+  }
+
+  // Step 1: Move all affected clients to a staging workspace
+  const stagingBase = 10000
+  for (const move of moves) {
+    try {
+      hypr.dispatch("movetoworkspacesilent", `${stagingBase},address:${move.address}`)
+    } catch (error) {
+      console.error(`Failed to stage window ${move.address}: ${error}`)
+    }
+  }
+
+  // Step 2: Move from staging to final workspaces
+  for (const move of moves) {
+    try {
+      hypr.dispatch("movetoworkspacesilent", `${move.newId},address:${move.address}`)
+    } catch (error) {
+      console.error(`Failed to move window ${move.address} to workspace ${move.newId}: ${error}`)
+    }
+  }
+
+  // Step 3: Rename all affected workspaces
+  const definitionsByNewId = new Map(workspaces.map((ws) => [ws.id, ws]))
+  for (const [, newId] of mapping.oldToNew) {
+    const def = definitionsByNewId.get(newId)
+    if (def) {
+      try {
+        hypr.dispatch("renameworkspace", `${newId} ${def.name}`)
+      } catch (error) {
+        console.error(`Failed to rename workspace ${newId}: ${error}`)
+      }
+    }
+  }
+
+  // Step 4: Restore focus
+  try {
+    hypr.dispatch("workspace", String(newFocusedWsId))
+  } catch (error) {
+    console.error(`Failed to restore focus to workspace ${newFocusedWsId}: ${error}`)
   }
 }

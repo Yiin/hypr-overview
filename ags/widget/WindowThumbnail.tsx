@@ -89,8 +89,24 @@ export default function WindowThumbnail({
 
     try {
       const mappedFile = GLib.MappedFile.new(getFramePath(stableId, meta.slot), false)
+      const src = mappedFile.get_bytes().get_data()
+      if (!src) { clearTexture(); return }
+
+      // Frame data is B8G8R8(A/X)8 (BGR order) — swap R and B for GdkPixbuf RGB
+      const dst = new Uint8Array(src.length)
+      for (let y = 0; y < meta.height; y++) {
+        const rowStart = y * meta.stride
+        for (let x = 0; x < meta.width; x++) {
+          const i = rowStart + x * 4
+          dst[i] = src[i + 2]
+          dst[i + 1] = src[i + 1]
+          dst[i + 2] = src[i]
+          dst[i + 3] = src[i + 3]
+        }
+      }
+
       const pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
-        mappedFile.get_bytes(),
+        GLib.Bytes.new(dst),
         GdkPixbuf.Colorspace.RGB,
         hasAlpha,
         8,

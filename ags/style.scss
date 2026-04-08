@@ -72,6 +72,16 @@ window.Overview {
       color: $subtext0;
     }
   }
+
+  &.special {
+    .workspace-tab-label {
+      font-style: italic;
+    }
+
+    &.active .workspace-tab-indicator {
+      background: $mauve;
+    }
+  }
 }
 
 .workspace-tab-add {
